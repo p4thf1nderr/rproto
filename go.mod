@@ -1,3 +1,3 @@
 module github.com/p4thf1nderr/rproto
 
-go 1.22.3
+go 1.22
