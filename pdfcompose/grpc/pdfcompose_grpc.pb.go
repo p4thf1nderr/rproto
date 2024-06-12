@@ -4,7 +4,7 @@
 // - protoc             v3.13.0
 // source: api/pdfcompose.proto
 
-package pdfcompose
+package grpc
 
 import (
 	context "context"
