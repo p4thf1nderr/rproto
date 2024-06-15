@@ -26,7 +26,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type PDFComposeServiceClient interface {
-	Send(ctx context.Context, in *SendIn, opts ...grpc.CallOption) (PDFComposeService_SendClient, error)
+	Send(ctx context.Context, opts ...grpc.CallOption) (PDFComposeService_SendClient, error)
 }
 
 type pDFComposeServiceClient struct {
@@ -37,24 +37,19 @@ func NewPDFComposeServiceClient(cc grpc.ClientConnInterface) PDFComposeServiceCl
 	return &pDFComposeServiceClient{cc}
 }
 
-func (c *pDFComposeServiceClient) Send(ctx context.Context, in *SendIn, opts ...grpc.CallOption) (PDFComposeService_SendClient, error) {
+func (c *pDFComposeServiceClient) Send(ctx context.Context, opts ...grpc.CallOption) (PDFComposeService_SendClient, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	stream, err := c.cc.NewStream(ctx, &PDFComposeService_ServiceDesc.Streams[0], PDFComposeService_Send_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	x := &pDFComposeServiceSendClient{ClientStream: stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
 	return x, nil
 }
 
 type PDFComposeService_SendClient interface {
-	Recv() (*File, error)
+	Send(*SendIn) error
+	Recv() (*SendOut, error)
 	grpc.ClientStream
 }
 
@@ -62,8 +57,12 @@ type pDFComposeServiceSendClient struct {
 	grpc.ClientStream
 }
 
-func (x *pDFComposeServiceSendClient) Recv() (*File, error) {
-	m := new(File)
+func (x *pDFComposeServiceSendClient) Send(m *SendIn) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *pDFComposeServiceSendClient) Recv() (*SendOut, error) {
+	m := new(SendOut)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -74,7 +73,7 @@ func (x *pDFComposeServiceSendClient) Recv() (*File, error) {
 // All implementations must embed UnimplementedPDFComposeServiceServer
 // for forward compatibility
 type PDFComposeServiceServer interface {
-	Send(*SendIn, PDFComposeService_SendServer) error
+	Send(PDFComposeService_SendServer) error
 	mustEmbedUnimplementedPDFComposeServiceServer()
 }
 
@@ -82,7 +81,7 @@ type PDFComposeServiceServer interface {
 type UnimplementedPDFComposeServiceServer struct {
 }
 
-func (UnimplementedPDFComposeServiceServer) Send(*SendIn, PDFComposeService_SendServer) error {
+func (UnimplementedPDFComposeServiceServer) Send(PDFComposeService_SendServer) error {
 	return status.Errorf(codes.Unimplemented, "method Send not implemented")
 }
 func (UnimplementedPDFComposeServiceServer) mustEmbedUnimplementedPDFComposeServiceServer() {}
@@ -99,15 +98,12 @@ func RegisterPDFComposeServiceServer(s grpc.ServiceRegistrar, srv PDFComposeServ
 }
 
 func _PDFComposeService_Send_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(SendIn)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(PDFComposeServiceServer).Send(m, &pDFComposeServiceSendServer{ServerStream: stream})
+	return srv.(PDFComposeServiceServer).Send(&pDFComposeServiceSendServer{ServerStream: stream})
 }
 
 type PDFComposeService_SendServer interface {
-	Send(*File) error
+	Send(*SendOut) error
+	Recv() (*SendIn, error)
 	grpc.ServerStream
 }
 
@@ -115,8 +111,16 @@ type pDFComposeServiceSendServer struct {
 	grpc.ServerStream
 }
 
-func (x *pDFComposeServiceSendServer) Send(m *File) error {
+func (x *pDFComposeServiceSendServer) Send(m *SendOut) error {
 	return x.ServerStream.SendMsg(m)
+}
+
+func (x *pDFComposeServiceSendServer) Recv() (*SendIn, error) {
+	m := new(SendIn)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 // PDFComposeService_ServiceDesc is the grpc.ServiceDesc for PDFComposeService service.
@@ -131,6 +135,7 @@ var PDFComposeService_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "Send",
 			Handler:       _PDFComposeService_Send_Handler,
 			ServerStreams: true,
+			ClientStreams: true,
 		},
 	},
 	Metadata: "api/pdfcompose.proto",
